@@ -26,6 +26,7 @@ import android.support.v4.content.FileProvider;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.IOException;
@@ -72,14 +73,14 @@ public class OpenGLES20Activity extends Activity {
         if (PermissionsHelper.hasPermissions(this)) {
             // Note that order matters - see the note in onPause(), the reverse applies here.
             mGLView.resume();
-            try {
+            /*try {
                 mOutputFile = createVideoOutputFile();
                 android.graphics.Point size = new android.graphics.Point();
                 getWindowManager().getDefaultDisplay().getRealSize(size);
                 mGLView.initRecorder(mOutputFile, size.x, size.y, null, null);
             } catch (IOException ioex) {
                 Log.e(TAG, "Couldn't re-init recording", ioex);
-            }
+            }*/
         } else {
             PermissionsHelper.requestPermissions(this);
         }
@@ -97,7 +98,7 @@ public class OpenGLES20Activity extends Activity {
         File tempFile = null;
         try {
             File dirCheck = new File(
-                    getFilesDir().getCanonicalPath() + "/" + "captures");
+                    getExternalCacheDir().getCanonicalPath() + "/" + "captures");
 
             if (!dirCheck.exists()) {
                 dirCheck.mkdirs();
@@ -105,7 +106,7 @@ public class OpenGLES20Activity extends Activity {
 
             String filename = new Date().getTime() + "";
             tempFile = new File(
-                    getFilesDir().getCanonicalPath() + "/" + "captures" + "/"
+                    getExternalCacheDir().getCanonicalPath() + "/" + "captures" + "/"
                             + filename + ".mp4");
         } catch (IOException ioex) {
             Log.e(TAG, "Couldn't create output file", ioex);
@@ -136,11 +137,12 @@ public class OpenGLES20Activity extends Activity {
         if (mIsRecording) {
             mGLView.stopRecording();
 
-            Uri contentUri = FileProvider.getUriForFile(this,
+            Log.d(TAG, "save file: " + mOutputFile);
+            /*Uri contentUri = FileProvider.getUriForFile(this,
                     "com.example.android.opengl.fileprovider", mOutputFile);
 
             share(contentUri);
-
+*/
             mIsRecording = false;
 
             mIsRecording = false;

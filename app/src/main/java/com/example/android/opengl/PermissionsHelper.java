@@ -21,7 +21,9 @@ public class PermissionsHelper {
         return (activity.checkSelfPermission(WRITE_EXTERNAL_STORAGE_PERMISSION) ==
                 PackageManager.PERMISSION_GRANTED) &&
                 (activity.checkSelfPermission(RECORD_AUDIO_PERMISSION) ==
-                PackageManager.PERMISSION_GRANTED);
+                PackageManager.PERMISSION_GRANTED) &&
+                (activity.checkSelfPermission(Manifest.permission.CAMERA) ==
+                        PackageManager.PERMISSION_GRANTED);
 
     }
 
@@ -29,7 +31,7 @@ public class PermissionsHelper {
      * Check to see we have the necessary permissions for this app, and ask for them if we don't.
      */
     public static void requestPermissions(Activity activity) {
-        activity.requestPermissions(new String[]{WRITE_EXTERNAL_STORAGE_PERMISSION, RECORD_AUDIO_PERMISSION},
+        activity.requestPermissions(new String[]{WRITE_EXTERNAL_STORAGE_PERMISSION, RECORD_AUDIO_PERMISSION, Manifest.permission.CAMERA},
                 GRANT_REQUEST_CODE);
     }
 

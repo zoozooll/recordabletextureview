@@ -26,7 +26,6 @@ import android.opengl.EGLSurface;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
-import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Surface;
@@ -37,8 +36,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -52,10 +49,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p><strong>Note:</strong> Currently, RecordableSurfaceView does not record video on the emulator
  * due to a dependency on {@link MediaRecorder}.</p>
  */
-public class RecordableSurfaceView extends SurfaceView {
+public class CustomGLView extends SurfaceView {
 
     @SuppressWarnings({"UnusedDeclaration"})
-    private static final String TAG = RecordableSurfaceView.class.getSimpleName();
+    private static final String TAG = CustomGLView.class.getSimpleName();
 
     /**
      * The renderer only renders when the surface is created, or when @link{requestRender} is
@@ -96,7 +93,7 @@ public class RecordableSurfaceView extends SurfaceView {
     /**
      * @param context -
      */
-    public RecordableSurfaceView(Context context) {
+    public CustomGLView(Context context) {
         super(context);
     }
 
@@ -104,7 +101,7 @@ public class RecordableSurfaceView extends SurfaceView {
      * @param context -
      * @param attrs   -
      */
-    public RecordableSurfaceView(Context context, AttributeSet attrs) {
+    public CustomGLView(Context context, AttributeSet attrs) {
         super(context, attrs);
     }
 
@@ -113,7 +110,7 @@ public class RecordableSurfaceView extends SurfaceView {
      * @param attrs        -
      * @param defStyleAttr -
      */
-    public RecordableSurfaceView(Context context, AttributeSet attrs, int defStyleAttr) {
+    public CustomGLView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
     }
 
@@ -124,8 +121,8 @@ public class RecordableSurfaceView extends SurfaceView {
      * @param defStyleRes  -
      */
     @SuppressWarnings({"UnusedDeclaration"})
-    public RecordableSurfaceView(Context context, AttributeSet attrs, int defStyleAttr,
-                                 int defStyleRes) {
+    public CustomGLView(Context context, AttributeSet attrs, int defStyleAttr,
+                        int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
     }
 
@@ -185,8 +182,8 @@ public class RecordableSurfaceView extends SurfaceView {
 
     /**
      * @return int representing the current render mode of this object
-     * @see RecordableSurfaceView#RENDERMODE_WHEN_DIRTY
-     * @see RecordableSurfaceView#RENDERMODE_CONTINUOUSLY
+     * @see CustomGLView#RENDERMODE_WHEN_DIRTY
+     * @see CustomGLView#RENDERMODE_CONTINUOUSLY
      */
     @SuppressWarnings({"UnusedDeclaration"})
     public int getRenderMode() {
@@ -194,13 +191,13 @@ public class RecordableSurfaceView extends SurfaceView {
     }
 
     /**
-     * Set the rendering mode. When renderMode is {@link RecordableSurfaceView#RENDERMODE_CONTINUOUSLY},
+     * Set the rendering mode. When renderMode is {@link CustomGLView#RENDERMODE_CONTINUOUSLY},
      * the renderer is called repeatedly to re-render the scene. When renderMode is {@link
-     * RecordableSurfaceView#RENDERMODE_WHEN_DIRTY}, the renderer only rendered when the surface is
-     * created, or when {@link RecordableSurfaceView#requestRender()} is called. Defaults to {@link
-     * RecordableSurfaceView#RENDERMODE_CONTINUOUSLY}.
+     * CustomGLView#RENDERMODE_WHEN_DIRTY}, the renderer only rendered when the surface is
+     * created, or when {@link CustomGLView#requestRender()} is called. Defaults to {@link
+     * CustomGLView#RENDERMODE_CONTINUOUSLY}.
      * <p>
-     * Using {@link RecordableSurfaceView#RENDERMODE_WHEN_DIRTY} can improve battery life and
+     * Using {@link CustomGLView#RENDERMODE_WHEN_DIRTY} can improve battery life and
      * overall system performance by allowing the GPU and CPU to idle when the view does not need
      * to
      * be updated.
@@ -213,7 +210,7 @@ public class RecordableSurfaceView extends SurfaceView {
     /**
      * Request that the renderer render a frame.
      * This method is typically used when the render mode has been set to {@link
-     * RecordableSurfaceView#RENDERMODE_WHEN_DIRTY},  so that frames are only rendered on demand.
+     * CustomGLView#RENDERMODE_WHEN_DIRTY},  so that frames are only rendered on demand.
      * May be called from any thread.
      * <p>
      * Must not be called before a renderer has been set.
@@ -462,8 +459,6 @@ public class RecordableSurfaceView extends SurfaceView {
             return configs[0];
         }
 
-        private long lastTime;
-
         @Override
         public void run() {
             if (mHasGLContext.get()) {
@@ -482,7 +477,7 @@ public class RecordableSurfaceView extends SurfaceView {
             };
 
             mEGLSurface = EGL14
-                    .eglCreateWindowSurface(mEGLDisplay, eglConfig, RecordableSurfaceView.this,
+                    .eglCreateWindowSurface(mEGLDisplay, eglConfig, CustomGLView.this,
                             surfaceAttribs, 0);
             EGL14.eglMakeCurrent(mEGLDisplay, mEGLSurface, mEGLSurface, mEGLContext);
 
@@ -512,15 +507,10 @@ public class RecordableSurfaceView extends SurfaceView {
             mLoop.set(true);
 
             while (mLoop.get()) {
-                long cur = SystemClock.elapsedRealtime();
-                Log.d(TAG, "opengl mLoop 1 " + (cur - lastTime));
-                lastTime = cur;
-//                Log.d(TAG, "opengl mLoop " + mPaused);
+
                 if (!mPaused) {
                     boolean shouldRender = false;
-                   /* long cur = SystemClock.elapsedRealtime();
-                    Log.d(TAG, "opengl mLoop " + (cur - lastTime));
-                    lastTime = cur;*/
+
                     //we're just rendering when requested, so check that no one
                     //has requested and if not, just continue
                     if (mRenderMode.get() == RENDERMODE_WHEN_DIRTY) {

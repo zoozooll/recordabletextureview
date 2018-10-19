@@ -21,6 +21,7 @@ import javax.microedition.khronos.opengles.GL10;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
+import android.os.SystemClock;
 import android.util.Log;
 
 /**
@@ -46,6 +47,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     private float mAngle;
 
+    private int frame;
+    private long lastDraw;
+
     @Override
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
 
@@ -58,6 +62,14 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onDrawFrame(GL10 unused) {
+
+        /*long curTime = SystemClock.elapsedRealtime();
+        if (curTime - lastDraw > 3000) {
+            Log.d(TAG, "fps " + ((float)frame * 1000f / (float)(curTime - lastDraw)));
+            lastDraw = curTime;
+            frame = 0;
+        }
+        frame ++;*/
         float[] scratch = new float[16];
 
         // Draw background color
@@ -88,6 +100,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw triangle
         mTriangle.draw(scratch);
+
     }
 
     @Override

@@ -67,9 +67,9 @@ public class MyGLSurfaceView extends RecordableSurfaceView implements Recordable
                     dy = dy * -1 ;
                 }
 
-                mRenderer.setAngle(
+                /*mRenderer.setAngle(
                         mRenderer.getAngle() +
-                        ((dx + dy) * TOUCH_SCALE_FACTOR));  // = 180.0f / 320
+                        ((dx + dy) * TOUCH_SCALE_FACTOR));  // = 180.0f / 320*/
                 requestRender();
         }
 
