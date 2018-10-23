@@ -1,7 +1,11 @@
 package com.uncorkedstudios.android.view.recordablesurfaceview;
 
+import android.graphics.ImageFormat;
+import android.media.ImageReader;
+import android.media.MediaCodec;
 import android.opengl.GLDebugHelper;
 import android.util.Log;
+import android.view.Surface;
 
 import java.io.Writer;
 import java.lang.ref.WeakReference;
@@ -28,6 +32,16 @@ import static com.uncorkedstudios.android.view.recordablesurfaceview.RecordableT
  */
 
 public class EglHelper {
+
+    private WeakReference<RecordableTextureView> mGLSurfaceViewWeakRef;
+    EGL10 mEgl;
+    EGLDisplay mEglDisplay;
+    EGLSurface mEglSurface;
+    EGLSurface mRecorderEglSurface;
+    EGLSurface mImageReaderEglSurface;
+    EGLConfig mEglConfig;
+    EGLContext mEglContext;
+
     public EglHelper(WeakReference<RecordableTextureView> glSurfaceViewWeakRef) {
         mGLSurfaceViewWeakRef = glSurfaceViewWeakRef;
     }
@@ -84,6 +98,8 @@ public class EglHelper {
         }
 
         mEglSurface = null;
+        mRecorderEglSurface = null;
+        mImageReaderEglSurface = null;
     }
 
     /**
@@ -134,16 +150,90 @@ public class EglHelper {
             return false;
         }
 
-        /*
+       /* *//*
          * Before we can issue GL commands, we need to make sure
          * the context is current and bound to a surface.
-         */
+         *//*
         if (!mEgl.eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext)) {
-            /*
+            *//*
              * Could not make the context current, probably because the underlying
              * SurfaceView surface has been destroyed.
-             */
+             *//*
             logEglErrorAsWarning("EGLHelper", "eglMakeCurrent", mEgl.eglGetError());
+            return false;
+        }
+*/
+        return true;
+    }
+
+    public boolean createRecordableSurface() {
+        if (LOG_EGL) {
+            Log.w("EglHelper", "createSurface()  tid=" + Thread.currentThread().getId());
+        }
+        /*
+         * Check preconditions.
+         */
+        if (mEgl == null) {
+            throw new RuntimeException("egl not initialized");
+        }
+        if (mEglDisplay == null) {
+            throw new RuntimeException("eglDisplay not initialized");
+        }
+        if (mEglConfig == null) {
+            throw new RuntimeException("mEglConfig not initialized");
+        }
+
+        destroyRecorderSurface();
+        RecordableTextureView view = mGLSurfaceViewWeakRef.get();
+        if (view != null) {
+            mRecorderEglSurface = view.mEGLRecordableSurfaceFactory.createWindowSurface(mEgl,
+                    mEglDisplay, mEglConfig, null);
+        } else {
+            mRecorderEglSurface = null;
+        }
+
+        if (mRecorderEglSurface == null || mRecorderEglSurface == EGL10.EGL_NO_SURFACE) {
+            int error = mEgl.eglGetError();
+            if (error == EGL10.EGL_BAD_NATIVE_WINDOW) {
+                Log.e("EglHelper", "createWindowSurface returned EGL_BAD_NATIVE_WINDOW.");
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    public boolean createImageReaderSurface() {
+        if (LOG_EGL) {
+            Log.w("EglHelper", "createSurface()  tid=" + Thread.currentThread().getId());
+        }
+        /*
+         * Check preconditions.
+         */
+        if (mEgl == null) {
+            throw new RuntimeException("egl not initialized");
+        }
+        if (mEglDisplay == null) {
+            throw new RuntimeException("eglDisplay not initialized");
+        }
+        if (mEglConfig == null) {
+            throw new RuntimeException("mEglConfig not initialized");
+        }
+
+        destroyRecorderSurface();
+        RecordableTextureView view = mGLSurfaceViewWeakRef.get();
+        if (view != null) {
+            mImageReaderEglSurface = view.mEGLImageReaderSurfaceFactory.createWindowSurface(mEgl,
+                    mEglDisplay, mEglConfig, null);
+        } else {
+            mImageReaderEglSurface = null;
+        }
+
+        if (mImageReaderEglSurface == null || mImageReaderEglSurface == EGL10.EGL_NO_SURFACE) {
+            int error = mEgl.eglGetError();
+            if (error == EGL10.EGL_BAD_NATIVE_WINDOW) {
+                Log.e("EglHelper", "createWindowSurface returned EGL_BAD_NATIVE_WINDOW.");
+            }
             return false;
         }
 
@@ -179,6 +269,30 @@ public class EglHelper {
         return gl;
     }
 
+    public boolean makeCurrent(int currentSurfaceIndex) {
+        EGLSurface currentSurface;
+        switch(currentSurfaceIndex) {
+            case 1:
+                currentSurface = mRecorderEglSurface;
+                break;
+            case 2:
+                currentSurface = mImageReaderEglSurface;
+                break;
+            default:
+                currentSurface = mEglSurface;
+                break;
+        }
+        if (currentSurface == null || !mEgl.eglMakeCurrent(mEglDisplay, currentSurface, currentSurface, mEglContext)) {
+            /*
+             * Could not make the context current, probably because the underlying
+             * SurfaceView surface has been destroyed.
+             */
+            logEglErrorAsWarning("EGLHelper", "eglMakeCurrent", mEgl.eglGetError());
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Display the current render surface.
      *
@@ -208,6 +322,32 @@ public class EglHelper {
                 view.mEGLWindowSurfaceFactory.destroySurface(mEgl, mEglDisplay, mEglSurface);
             }
             mEglSurface = null;
+        }
+    }
+
+    public  void destroyRecorderSurface() {
+        if (mRecorderEglSurface != null && mRecorderEglSurface != EGL10.EGL_NO_SURFACE) {
+            mEgl.eglMakeCurrent(mEglDisplay, EGL10.EGL_NO_SURFACE,
+                    EGL10.EGL_NO_SURFACE,
+                    EGL10.EGL_NO_CONTEXT);
+            RecordableTextureView view = mGLSurfaceViewWeakRef.get();
+            if (view != null) {
+                view.mEGLRecordableSurfaceFactory.destroySurface(mEgl, mEglDisplay, mRecorderEglSurface);
+            }
+            mImageReaderEglSurface = null;
+        }
+    }
+
+    public  void destroyImageReaderSurface() {
+        if (mImageReaderEglSurface != null && mImageReaderEglSurface != EGL10.EGL_NO_SURFACE) {
+            mEgl.eglMakeCurrent(mEglDisplay, EGL10.EGL_NO_SURFACE,
+                    EGL10.EGL_NO_SURFACE,
+                    EGL10.EGL_NO_CONTEXT);
+            RecordableTextureView view = mGLSurfaceViewWeakRef.get();
+            if (view != null) {
+                view.mEGLWindowSurfaceFactory.destroySurface(mEgl, mEglDisplay, mImageReaderEglSurface);
+            }
+            mImageReaderEglSurface = null;
         }
     }
 
@@ -248,13 +388,5 @@ public class EglHelper {
     public static String formatEglError(String function, int error) {
         return function + " failed: " + error;
     }
-
-    private WeakReference<RecordableTextureView> mGLSurfaceViewWeakRef;
-    EGL10 mEgl;
-    EGLDisplay mEglDisplay;
-    EGLSurface mEglSurface;
-    EGLSurface mRecorderSurface;
-    EGLConfig mEglConfig;
-    EGLContext mEglContext;
 
 }

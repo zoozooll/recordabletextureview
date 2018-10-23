@@ -19,4 +19,8 @@ public interface EGLWindowSurfaceFactory {
                                    Object nativeWindow);
 
     void destroySurface(EGL10 egl, EGLDisplay display, EGLSurface surface);
+
+    void setActive(boolean active);
+
+    boolean isActive();
 }

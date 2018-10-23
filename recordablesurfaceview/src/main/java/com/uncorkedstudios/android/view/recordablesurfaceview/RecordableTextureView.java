@@ -2,6 +2,7 @@ package com.uncorkedstudios.android.view.recordablesurfaceview;
 
 import android.content.Context;
 import android.graphics.SurfaceTexture;
+import android.media.ImageReader;
 import android.opengl.GLDebugHelper;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -68,6 +69,24 @@ public class RecordableTextureView extends TextureView
      * @see #setDebugFlags
      */
     public final static int DEBUG_LOG_GL_CALLS = 2;
+
+    static final GLThreadManager sGLThreadManager = new GLThreadManager();
+
+    private final WeakReference<RecordableTextureView> mThisWeakRef = new WeakReference<>(this);
+    private GLThread mGLThread;
+    Renderer mRenderer;
+    private boolean mDetached;
+    EGLConfigChooser mEGLConfigChooser;
+    EGLContextFactory mEGLContextFactory;
+    EGLWindowSurfaceFactory mEGLWindowSurfaceFactory;
+    EGLWindowSurfaceFactory mEGLRecordableSurfaceFactory;
+    EGLWindowSurfaceFactory mEGLImageReaderSurfaceFactory;
+    GLWrapper mGLWrapper;
+    public int mDebugFlags;
+    private int mEGLContextClientVersion;
+    boolean mPreserveEGLContextOnPause;
+    private RecorderController mRecorderController;
+//    private ImageReader mImageReader;
 
     /**
      * Standard View constructor. In order to render something, you
@@ -243,6 +262,18 @@ public class RecordableTextureView extends TextureView
     public void setEGLWindowSurfaceFactory(EGLWindowSurfaceFactory factory) {
         checkRenderThreadState();
         mEGLWindowSurfaceFactory = factory;
+    }
+
+    public void setEGLRecordableSurfaceFactory(EGLWindowSurfaceFactory factory) {
+        checkRenderThreadState();
+        mEGLRecordableSurfaceFactory = factory;
+        mGLThread.initRecordableSurface();
+    }
+
+    public void setEGLImageReaderSurfaceFactory(EGLWindowSurfaceFactory factory) {
+        checkRenderThreadState();
+        mEGLImageReaderSurfaceFactory = factory;
+        mGLThread.initImageReaderSurface();
     }
 
     /**
@@ -658,17 +689,5 @@ public class RecordableTextureView extends TextureView
         }
     }
 
-    static final GLThreadManager sGLThreadManager = new GLThreadManager();
 
-    private final WeakReference<RecordableTextureView> mThisWeakRef = new WeakReference<>(this);
-    private GLThread mGLThread;
-    Renderer mRenderer;
-    private boolean mDetached;
-    EGLConfigChooser mEGLConfigChooser;
-    EGLContextFactory mEGLContextFactory;
-    EGLWindowSurfaceFactory mEGLWindowSurfaceFactory;
-    GLWrapper mGLWrapper;
-    public int mDebugFlags;
-    private int mEGLContextClientVersion;
-    boolean mPreserveEGLContextOnPause;
 }
