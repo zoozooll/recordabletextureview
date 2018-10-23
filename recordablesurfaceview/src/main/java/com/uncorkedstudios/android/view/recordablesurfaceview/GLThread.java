@@ -295,7 +295,7 @@ public class GLThread extends Thread {
                                     + " mRenderMode: " + mRenderMode);
                         }
                         RecordableTextureView.sGLThreadManager.wait();
-                    }
+                    } // end of inner looper
                 } // end of synchronized(RecordableTextureView.sGLThreadManager)
 
                 if (event != null) {
@@ -388,33 +388,35 @@ public class GLThread extends Thread {
                             }
 
                         }
-                        result = mEglHelper.makeCurrent(1);
-                        if (result) {
-                            view.mRenderer.onDrawFrame(gl);
-                            int swapError = mEglHelper.swap();
-                            switch (swapError) {
-                                case EGL10.EGL_SUCCESS:
-                                    break;
-                                case EGL11.EGL_CONTEXT_LOST:
-                                    if (LOG_SURFACE) {
-                                        Log.i("GLThread", "egl context lost tid=" + getId());
-                                    }
-                                    lostEglContext = true;
-                                    break;
-                                default:
-                                    // Other errors typically mean that the current surface is bad,
-                                    // probably because the SurfaceView surface has been destroyed,
-                                    // but we haven't been notified yet.
-                                    // Log the error to help developers understand why rendering stopped.
-                                    EglHelper.logEglErrorAsWarning("GLThread", "eglSwapBuffers", swapError);
+                        if (view.mRecorderController.isRecording()) {
+                            result = mEglHelper.makeCurrent(1);
+                            if (result) {
+                                view.mRenderer.onDrawFrame(gl);
+                                int swapError = mEglHelper.swap();
+                                switch (swapError) {
+                                    case EGL10.EGL_SUCCESS:
+                                        break;
+                                    case EGL11.EGL_CONTEXT_LOST:
+                                        if (LOG_SURFACE) {
+                                            Log.i("GLThread", "egl context lost tid=" + getId());
+                                        }
+                                        lostEglContext = true;
+                                        break;
+                                    default:
+                                        // Other errors typically mean that the current surface is bad,
+                                        // probably because the SurfaceView surface has been destroyed,
+                                        // but we haven't been notified yet.
+                                        // Log the error to help developers understand why rendering stopped.
+                                        EglHelper.logEglErrorAsWarning("GLThread", "eglSwapBuffers", swapError);
 
-                                    synchronized (RecordableTextureView.sGLThreadManager) {
-                                        mSurfaceIsBad = true;
-                                        RecordableTextureView.sGLThreadManager.notifyAll();
-                                    }
-                                    break;
+                                        synchronized (RecordableTextureView.sGLThreadManager) {
+                                            mSurfaceIsBad = true;
+                                            RecordableTextureView.sGLThreadManager.notifyAll();
+                                        }
+                                        break;
+                                }
+
                             }
-
                         }
 
                         result = mEglHelper.makeCurrent(2);
@@ -451,7 +453,7 @@ public class GLThread extends Thread {
                 if (wantRenderNotification) {
                     doRenderNotification = true;
                 }
-            }
+            } // end of outer looper
 
         } finally {
             /*

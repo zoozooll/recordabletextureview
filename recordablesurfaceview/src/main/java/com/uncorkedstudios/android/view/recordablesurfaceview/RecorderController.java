@@ -15,6 +15,7 @@ public class RecorderController {
     private MediaRecorder mMediaRecorder;
     private Surface mSurface;
     private AtomicBoolean mIsRecording = new AtomicBoolean(false);
+    private boolean recorderSet;
 
     public RecorderController() {
         mSurface = MediaCodec.createPersistentInputSurface();
@@ -55,21 +56,25 @@ public class RecorderController {
     }
 
     public boolean startRecording() {
-        boolean success = true;
-        try {
-            mMediaRecorder.start();
-            mIsRecording.set(true);
-        } catch (IllegalStateException e) {
-            Log.e(TAG, "startRecording failed");
-            success = false;
-            mIsRecording.set(false);
-            mMediaRecorder.reset();
-            mMediaRecorder.release();
+        if (!mIsRecording.get()) {
+            boolean success = true;
+            try {
+                mMediaRecorder.start();
+                mIsRecording.set(true);
+            } catch (IllegalStateException e) {
+                Log.e(TAG, "startRecording failed");
+                success = false;
+                mIsRecording.set(false);
+                mMediaRecorder.reset();
+                mMediaRecorder.release();
+            }
+            return success;
+        } else {
+            return false;
         }
-        return success;
     }
 
-    public boolean stopRecording() throws IllegalStateException {
+    public boolean stopRecording() {
         if (mIsRecording.get()) {
             boolean success = true;
             try {
@@ -82,13 +87,20 @@ public class RecorderController {
                 mMediaRecorder.release();
             }
             return success;
-        } else {
-            throw new IllegalStateException("Cannot stop. Is not recording.");
         }
+        return false;
+    }
 
+    public boolean isRecording() {
+        return  mIsRecording.get();
     }
 
     public Surface getRecorderSurface() {
         return mSurface;
+    }
+
+    public void releaseRecorderSurface() {
+        mSurface.release();
+        mSurface = null;
     }
 }

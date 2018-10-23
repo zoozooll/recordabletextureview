@@ -3,7 +3,10 @@ package com.uncorkedstudios.android.view.recordablesurfaceview;
 import android.content.Context;
 import android.graphics.SurfaceTexture;
 import android.media.ImageReader;
+import android.opengl.EGL14;
+import android.opengl.EGLExt;
 import android.opengl.GLDebugHelper;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.TextureView;
@@ -85,7 +88,7 @@ public class RecordableTextureView extends TextureView
     public int mDebugFlags;
     private int mEGLContextClientVersion;
     boolean mPreserveEGLContextOnPause;
-    private RecorderController mRecorderController;
+    RecorderController mRecorderController;
 //    private ImageReader mImageReader;
 
     /**
@@ -222,7 +225,7 @@ public class RecordableTextureView extends TextureView
     public void setRenderer(Renderer renderer) {
         checkRenderThreadState();
         if (mEGLConfigChooser == null) {
-            mEGLConfigChooser = new SimpleEGLConfigChooser(true);
+            mEGLConfigChooser = new RecordableEGLConfigChooser();
         }
         if (mEGLContextFactory == null) {
             mEGLContextFactory = new DefaultContextFactory();
@@ -234,6 +237,19 @@ public class RecordableTextureView extends TextureView
         mGLThread = new GLThread(mThisWeakRef);
         mGLThread.start();
     }
+
+    public void setRecorder() {
+        mRecorderController = new RecorderController();
+    }
+
+    public boolean startRecording() {
+        return mRecorderController.startRecording();
+    }
+
+    public boolean stopRecording() {
+        return mRecorderController.stopRecording();
+    }
+
 
     /**
      * Install a custom EGLContextFactory.
@@ -549,9 +565,30 @@ public class RecordableTextureView extends TextureView
         }
     }
 
-    private abstract class BaseConfigChooser
-            implements EGLConfigChooser {
-        public BaseConfigChooser(int[] configSpec) {
+    /**
+     * This class will choose a RGB_888 surface with
+     * or without a depth buffer.
+     */
+    private class SimpleEGLConfigChooser extends ComponentSizeChooser {
+        public SimpleEGLConfigChooser(boolean withDepthBuffer) {
+            super(8, 8, 8, 0, withDepthBuffer ? 16 : 0, 0);
+        }
+    }
+
+    private class RecordableEGLConfigChooser implements EGLConfigChooser {
+
+        protected int[] mConfigSpec;
+
+        public RecordableEGLConfigChooser() {
+            int[] configSpec = {
+                    EGL14.EGL_RED_SIZE, 8,
+                    EGL14.EGL_GREEN_SIZE, 8,
+                    EGL14.EGL_BLUE_SIZE, 8,
+                    EGL14.EGL_ALPHA_SIZE, 8,
+                    EGL14.EGL_DEPTH_SIZE, 16,
+                    0x3142, 1,
+                    EGL14.EGL_NONE
+            };
             mConfigSpec = filterConfigSpec(configSpec);
         }
 
@@ -581,13 +618,37 @@ public class RecordableTextureView extends TextureView
             return config;
         }
 
-        abstract EGLConfig chooseConfig(EGL10 egl, EGLDisplay display,
-                                        EGLConfig[] configs);
+        public EGLConfig chooseConfig(EGL10 egl, EGLDisplay display,
+                                      EGLConfig[] configs) {
+            for (EGLConfig config : configs) {
+                int d = findConfigAttrib(egl, display, config,
+                        EGL10.EGL_DEPTH_SIZE, 0);
+                int s = findConfigAttrib(egl, display, config,
+                        EGL10.EGL_STENCIL_SIZE, 0);
+                if ((d >= mConfigSpec[9]) && (s >= 0)) {
+                    int r = findConfigAttrib(egl, display, config,
+                            EGL10.EGL_RED_SIZE, 0);
+                    int g = findConfigAttrib(egl, display, config,
+                            EGL10.EGL_GREEN_SIZE, 0);
+                    int b = findConfigAttrib(egl, display, config,
+                            EGL10.EGL_BLUE_SIZE, 0);
+                    int a = findConfigAttrib(egl, display, config,
+                            EGL10.EGL_ALPHA_SIZE, 0);
+                    if ((r == mConfigSpec[1]) && (g == mConfigSpec[3])
+                            && (b == mConfigSpec[5]) && (a == mConfigSpec[7])) {
+                        return config;
+                    }
+                }
+            }
+            return null;
+        }
 
-        protected int[] mConfigSpec;
 
         private int[] filterConfigSpec(int[] configSpec) {
-            if (mEGLContextClientVersion != 2 && mEGLContextClientVersion != 3) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                configSpec[10] = EGLExt.EGL_RECORDABLE_ANDROID;
+            }
+            if (mEGLContextClientVersion < 2) {
                 return configSpec;
             }
             /* We know none of the subclasses define EGL_RENDERABLE_TYPE.
@@ -597,88 +658,23 @@ public class RecordableTextureView extends TextureView
             int[] newConfigSpec = new int[len + 2];
             System.arraycopy(configSpec, 0, newConfigSpec, 0, len - 1);
             newConfigSpec[len - 1] = EGL10.EGL_RENDERABLE_TYPE;
-            newConfigSpec[len] = 4; /* EGL_OPENGL_ES2_BIT */
+            if (mEGLContextClientVersion == 2) {
+                newConfigSpec[len] = EGL14.EGL_OPENGL_ES2_BIT;  /* EGL_OPENGL_ES2_BIT */
+            } else {
+                newConfigSpec[len] = EGLExt.EGL_OPENGL_ES3_BIT_KHR; /* EGL_OPENGL_ES3_BIT_KHR */
+            }
             newConfigSpec[len + 1] = EGL10.EGL_NONE;
             return newConfigSpec;
-        }
-    }
-
-    /**
-     * Choose a configuration with exactly the specified r,g,b,a sizes,
-     * and at least the specified depth and stencil sizes.
-     */
-    private class ComponentSizeChooser extends BaseConfigChooser {
-        public ComponentSizeChooser(int redSize, int greenSize, int blueSize,
-                                    int alphaSize, int depthSize, int stencilSize) {
-            super(new int[]{
-                    EGL10.EGL_RED_SIZE, redSize,
-                    EGL10.EGL_GREEN_SIZE, greenSize,
-                    EGL10.EGL_BLUE_SIZE, blueSize,
-                    EGL10.EGL_ALPHA_SIZE, alphaSize,
-                    EGL10.EGL_DEPTH_SIZE, depthSize,
-                    EGL10.EGL_STENCIL_SIZE, stencilSize,
-                    EGL10.EGL_NONE});
-            mValue = new int[1];
-            mRedSize = redSize;
-            mGreenSize = greenSize;
-            mBlueSize = blueSize;
-            mAlphaSize = alphaSize;
-            mDepthSize = depthSize;
-            mStencilSize = stencilSize;
-        }
-
-        @Override
-        public EGLConfig chooseConfig(EGL10 egl, EGLDisplay display,
-                                      EGLConfig[] configs) {
-            for (EGLConfig config : configs) {
-                int d = findConfigAttrib(egl, display, config,
-                        EGL10.EGL_DEPTH_SIZE, 0);
-                int s = findConfigAttrib(egl, display, config,
-                        EGL10.EGL_STENCIL_SIZE, 0);
-                if ((d >= mDepthSize) && (s >= mStencilSize)) {
-                    int r = findConfigAttrib(egl, display, config,
-                            EGL10.EGL_RED_SIZE, 0);
-                    int g = findConfigAttrib(egl, display, config,
-                            EGL10.EGL_GREEN_SIZE, 0);
-                    int b = findConfigAttrib(egl, display, config,
-                            EGL10.EGL_BLUE_SIZE, 0);
-                    int a = findConfigAttrib(egl, display, config,
-                            EGL10.EGL_ALPHA_SIZE, 0);
-                    if ((r == mRedSize) && (g == mGreenSize)
-                            && (b == mBlueSize) && (a == mAlphaSize)) {
-                        return config;
-                    }
-                }
-            }
-            return null;
         }
 
         private int findConfigAttrib(EGL10 egl, EGLDisplay display,
                                      EGLConfig config, int attribute, int defaultValue) {
 
+            int[] mValue = new int[1];
             if (egl.eglGetConfigAttrib(display, config, attribute, mValue)) {
                 return mValue[0];
             }
             return defaultValue;
-        }
-
-        private int[] mValue;
-        // Subclasses can adjust these values:
-        protected int mRedSize;
-        protected int mGreenSize;
-        protected int mBlueSize;
-        protected int mAlphaSize;
-        protected int mDepthSize;
-        protected int mStencilSize;
-    }
-
-    /**
-     * This class will choose a RGB_888 surface with
-     * or without a depth buffer.
-     */
-    private class SimpleEGLConfigChooser extends ComponentSizeChooser {
-        public SimpleEGLConfigChooser(boolean withDepthBuffer) {
-            super(8, 8, 8, 0, withDepthBuffer ? 16 : 0, 0);
         }
     }
 
