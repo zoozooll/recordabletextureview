@@ -52,11 +52,11 @@ public class RecorderController {
         mediaRecorder.prepare();
 
         mMediaRecorder = mediaRecorder;
-
+        recorderSet = true;
     }
 
     public boolean startRecording() {
-        if (!mIsRecording.get()) {
+        if (mMediaRecorder != null && !mIsRecording.get()) {
             boolean success = true;
             try {
                 mMediaRecorder.start();
@@ -75,7 +75,7 @@ public class RecorderController {
     }
 
     public boolean stopRecording() {
-        if (mIsRecording.get()) {
+        if (mMediaRecorder != null &&  mIsRecording.get()) {
             boolean success = true;
             try {
                 mMediaRecorder.stop();
@@ -86,6 +86,7 @@ public class RecorderController {
             } finally {
                 mMediaRecorder.release();
             }
+            recorderSet = false;
             return success;
         }
         return false;
@@ -99,8 +100,15 @@ public class RecorderController {
         return mSurface;
     }
 
-    public void releaseRecorderSurface() {
+    public boolean isRecorderSet() {
+        return recorderSet;
+    }
+
+    public void releaseRecorder() {
         mSurface.release();
         mSurface = null;
+        mMediaRecorder.release();
+        mMediaRecorder = null;
+        recorderSet = false;
     }
 }

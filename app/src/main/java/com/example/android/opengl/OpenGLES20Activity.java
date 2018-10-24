@@ -16,6 +16,7 @@
 package com.example.android.opengl;
 
 import com.uncorkedstudios.android.view.recordablesurfaceview.RecordableSurfaceView;
+import com.uncorkedstudios.android.view.recordablesurfaceview.RecordableTextureView;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -36,7 +37,7 @@ import static android.content.ContentValues.TAG;
 
 public class OpenGLES20Activity extends Activity {
 
-    private RecordableSurfaceView mGLView;
+    private RecordableTextureView mGLView;
 
     private boolean mIsRecording;
 
@@ -49,7 +50,7 @@ public class OpenGLES20Activity extends Activity {
 
         // Create a GLSurfaceView instance and set it
         // as the ContentView for this Activity
-        mGLView = new MyGLSurfaceView(this);
+        mGLView = new MyGLTextureView(this);
         setContentView(mGLView);
     }
 
@@ -60,7 +61,7 @@ public class OpenGLES20Activity extends Activity {
         // If your OpenGL application is memory intensive,
         // you should consider de-allocating objects that
         // consume significant memory here.
-        mGLView.pause();
+        mGLView.onPause();
     }
 
     @Override
@@ -72,7 +73,7 @@ public class OpenGLES20Activity extends Activity {
 
         if (PermissionsHelper.hasPermissions(this)) {
             // Note that order matters - see the note in onPause(), the reverse applies here.
-            mGLView.resume();
+            mGLView.onResume();
             /*try {
                 mOutputFile = createVideoOutputFile();
                 android.graphics.Point size = new android.graphics.Point();
@@ -121,12 +122,11 @@ public class OpenGLES20Activity extends Activity {
             @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         // Note that order matters - see the note in onPause(), the reverse applies here.
-        mGLView.resume();
         try {
             mOutputFile = createVideoOutputFile();
             android.graphics.Point size = new android.graphics.Point();
             getWindowManager().getDefaultDisplay().getRealSize(size);
-            mGLView.initRecorder(mOutputFile, size.x, size.y, null, null);
+            mGLView.initRecorder(mOutputFile, size.x, size.y, 0);
         } catch (IOException ioex) {
             Log.e(TAG, "Couldn't re-init recording", ioex);
         }
@@ -151,20 +151,28 @@ public class OpenGLES20Activity extends Activity {
             try {
                 int screenWidth = mGLView.getWidth();
                 int screenHeight = mGLView.getHeight();
-                mGLView.initRecorder(mOutputFile, (int) screenWidth, (int) screenHeight, null,
-                        null);
+                mGLView.initRecorder(mOutputFile, (int) screenWidth, (int) screenHeight, 0);
             } catch (IOException ioex) {
                 Log.e(TAG, "Couldn't re-init recording", ioex);
             }
             item.setTitle("Record");
 
         } else {
-
-            mGLView.startRecording();
-            Log.v(TAG, "Recording Started");
-
-            item.setTitle("Stop");
-            mIsRecording = true;
+            if (!mGLView.isRecorderSet()) {
+                try {
+                    mOutputFile = createVideoOutputFile();
+                    int screenWidth = mGLView.getWidth();
+                    int screenHeight = mGLView.getHeight();
+                    mGLView.initRecorder(mOutputFile, (int) screenWidth, (int) screenHeight, 0);
+                } catch (IOException ioex) {
+                    Log.e(TAG, "Couldn't re-init recording", ioex);
+                }
+            }
+            if (mGLView.startRecording()) {
+                Log.v(TAG, "Recording Started");
+                item.setTitle("Stop");
+                mIsRecording = true;
+            }
 
         }
         return true;

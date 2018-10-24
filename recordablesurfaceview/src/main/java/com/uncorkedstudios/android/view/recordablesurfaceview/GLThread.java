@@ -121,6 +121,8 @@ public class GLThread extends Thread {
             boolean wantRenderNotification = false;
             boolean doRenderNotification = false;
             boolean askedToReleaseEglContext = false;
+            boolean createRecordableSurface = false;
+            boolean createImageReaderSurface = false;
             int w = 0;
             int h = 0;
             Runnable event = null;
@@ -177,8 +179,7 @@ public class GLThread extends Thread {
                         // When pausing, optionally release the EGL Context:
                         if (pausing && mHaveEglContext) {
                             RecordableTextureView view = mGLSurfaceViewWeakRef.get();
-                            boolean preserveEglContextOnPause = view == null ?
-                                    false : view.mPreserveEGLContextOnPause;
+                            boolean preserveEglContextOnPause = view != null && view.mPreserveEGLContextOnPause;
                             if (!preserveEglContextOnPause || RecordableTextureView.sGLThreadManager.shouldReleaseEGLContextWhenPausing()) {
                                 stopEglContextLocked();
                                 if (LOG_SURFACE) {
@@ -271,13 +272,24 @@ public class GLThread extends Thread {
 
                                     // Destroy and recreate the EGL surface.
                                     createEglSurface = true;
-
+                                    RecordableTextureView view = mGLSurfaceViewWeakRef.get();
+                                    if (view != null && view.mRecorderController != null) {
+                                        createRecordableSurface = true;
+                                    }
                                     mSizeChanged = false;
                                 }
                                 mRequestRender = false;
                                 RecordableTextureView.sGLThreadManager.notifyAll();
                                 break;
                             }
+
+                            if (mHaveEglSurface && mEglHelper.mRecorderEglSurface == null) {
+                                RecordableTextureView view = mGLSurfaceViewWeakRef.get();
+                                if (view != null && view.mRecorderController != null) {
+                                    createRecordableSurface = true;
+                                }
+                            }
+
                         }
 
                         // By design, this is the only place in a GLThread thread where we wait().
@@ -316,6 +328,10 @@ public class GLThread extends Thread {
                         continue;
                     }
                     createEglSurface = false;
+                }
+                if (createRecordableSurface) {
+                    mEglHelper.createRecordableSurface();
+                    createRecordableSurface = false;
                 }
                 if (!mEglHelper.makeCurrent(0)) {
                     synchronized (RecordableTextureView.sGLThreadManager) {
@@ -360,10 +376,11 @@ public class GLThread extends Thread {
                 {
                     RecordableTextureView view = mGLSurfaceViewWeakRef.get();
                     if (view != null) {
-                        boolean result = mEglHelper.makeCurrent(0);
-                        if (result) {
+                        boolean result;
+                        //result = mEglHelper.makeCurrent(0);
+                        {
                             view.mRenderer.onDrawFrame(gl);
-                            int swapError = mEglHelper.swap();
+                            int swapError = mEglHelper.swap(0);
                             switch (swapError) {
                                 case EGL10.EGL_SUCCESS:
                                     break;
@@ -388,11 +405,11 @@ public class GLThread extends Thread {
                             }
 
                         }
-                        if (view.mRecorderController.isRecording()) {
+                        if (view.mRecorderController != null && view.mRecorderController.isRecording()) {
                             result = mEglHelper.makeCurrent(1);
                             if (result) {
                                 view.mRenderer.onDrawFrame(gl);
-                                int swapError = mEglHelper.swap();
+                                int swapError = mEglHelper.swap(1);
                                 switch (swapError) {
                                     case EGL10.EGL_SUCCESS:
                                         break;
@@ -419,10 +436,10 @@ public class GLThread extends Thread {
                             }
                         }
 
-                        result = mEglHelper.makeCurrent(2);
+                        /*result = mEglHelper.makeCurrent(2);
                         if (result) {
                             view.mRenderer.onDrawFrame(gl);
-                            int swapError = mEglHelper.swap();
+                            int swapError = mEglHelper.swap(2);
                             switch (swapError) {
                                 case EGL10.EGL_SUCCESS:
                                     break;
@@ -446,7 +463,7 @@ public class GLThread extends Thread {
                                     break;
                             }
 
-                        }
+                        }*/
                     }
                 }
 
@@ -635,29 +652,13 @@ public class GLThread extends Thread {
         }
     }
 
-    public void initRecordableSurface() {
-        queueEvent(new Runnable() {
-            @Override
-            public void run() {
-                mEglHelper.createRecordableSurface();
-            }
-        });
-    }
+
 
     public void deleteRecordableSurface() {
         queueEvent(new Runnable() {
             @Override
             public void run() {
                 mEglHelper.destroyRecorderSurface();
-            }
-        });
-    }
-
-    public void initImageReaderSurface() {
-        queueEvent(new Runnable() {
-            @Override
-            public void run() {
-                mEglHelper.createImageReaderSurface();
             }
         });
     }

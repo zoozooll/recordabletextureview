@@ -26,6 +26,7 @@ import static com.uncorkedstudios.android.view.recordablesurfaceview.RecordableT
 import static com.uncorkedstudios.android.view.recordablesurfaceview.RecordableTextureView.LOG_RENDERER;
 import static com.uncorkedstudios.android.view.recordablesurfaceview.RecordableTextureView.LOG_RENDERER_DRAW_FRAME;
 import static com.uncorkedstudios.android.view.recordablesurfaceview.RecordableTextureView.LOG_EGL;
+import static com.uncorkedstudios.android.view.recordablesurfaceview.RecordableTextureView.TAG;
 
 /**
  * An EGL helper class.
@@ -282,7 +283,11 @@ public class EglHelper {
                 currentSurface = mEglSurface;
                 break;
         }
-        if (currentSurface == null || !mEgl.eglMakeCurrent(mEglDisplay, currentSurface, currentSurface, mEglContext)) {
+        if (currentSurface == null) {
+            return false;
+        }
+        Log.d(TAG, "makeCurrent eglsurface index " + currentSurfaceIndex);
+        if (!mEgl.eglMakeCurrent(mEglDisplay, currentSurface, currentSurface, mEglContext)) {
             /*
              * Could not make the context current, probably because the underlying
              * SurfaceView surface has been destroyed.
@@ -300,6 +305,27 @@ public class EglHelper {
      */
     public int swap() {
         if (!mEgl.eglSwapBuffers(mEglDisplay, mEglSurface)) {
+            return mEgl.eglGetError();
+        }
+        return EGL10.EGL_SUCCESS;
+    }
+
+    public int swap(int index) {
+        Log.d(TAG, "swap eglsurface index " + index);
+        EGLSurface surface;
+        switch (index)
+        {
+            case 1:
+                surface = mRecorderEglSurface;
+                break;
+            case 2:
+                surface = mImageReaderEglSurface;
+                break;
+            default:
+                surface = mEglSurface;
+                break;
+        }
+        if (!mEgl.eglSwapBuffers(mEglDisplay, surface)) {
             return mEgl.eglGetError();
         }
         return EGL10.EGL_SUCCESS;
@@ -327,22 +353,16 @@ public class EglHelper {
 
     public  void destroyRecorderSurface() {
         if (mRecorderEglSurface != null && mRecorderEglSurface != EGL10.EGL_NO_SURFACE) {
-            mEgl.eglMakeCurrent(mEglDisplay, EGL10.EGL_NO_SURFACE,
-                    EGL10.EGL_NO_SURFACE,
-                    EGL10.EGL_NO_CONTEXT);
             RecordableTextureView view = mGLSurfaceViewWeakRef.get();
             if (view != null) {
                 view.mEGLRecordableSurfaceFactory.destroySurface(mEgl, mEglDisplay, mRecorderEglSurface);
             }
-            mImageReaderEglSurface = null;
+            mRecorderEglSurface = null;
         }
     }
 
     public  void destroyImageReaderSurface() {
         if (mImageReaderEglSurface != null && mImageReaderEglSurface != EGL10.EGL_NO_SURFACE) {
-            mEgl.eglMakeCurrent(mEglDisplay, EGL10.EGL_NO_SURFACE,
-                    EGL10.EGL_NO_SURFACE,
-                    EGL10.EGL_NO_CONTEXT);
             RecordableTextureView view = mGLSurfaceViewWeakRef.get();
             if (view != null) {
                 view.mEGLWindowSurfaceFactory.destroySurface(mEgl, mEglDisplay, mImageReaderEglSurface);

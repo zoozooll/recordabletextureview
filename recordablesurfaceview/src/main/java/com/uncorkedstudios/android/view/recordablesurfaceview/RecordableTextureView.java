@@ -3,6 +3,7 @@ package com.uncorkedstudios.android.view.recordablesurfaceview;
 import android.content.Context;
 import android.graphics.SurfaceTexture;
 import android.media.ImageReader;
+import android.media.MediaRecorder;
 import android.opengl.EGL14;
 import android.opengl.EGLExt;
 import android.opengl.GLDebugHelper;
@@ -12,6 +13,8 @@ import android.util.Log;
 import android.view.TextureView;
 import android.view.View;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.Writer;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -240,14 +243,30 @@ public class RecordableTextureView extends TextureView
 
     public void setRecorder() {
         mRecorderController = new RecorderController();
+        mEGLRecordableSurfaceFactory = new RecordableSurfaceFactory(mRecorderController.getRecorderSurface());
+    }
+
+    public void initRecorder(File saveToFile, int displayWidth, int displayHeight,
+                             int orientationHint) throws IOException {
+        mRecorderController.initRecorder(saveToFile, displayWidth, displayHeight, orientationHint, null, null);
+    }
+
+    public boolean isRecorderSet() {
+        return mRecorderController.isRecorderSet();
     }
 
     public boolean startRecording() {
-        return mRecorderController.startRecording();
+        if (mRecorderController != null && mRecorderController.isRecorderSet()) {
+            return mRecorderController.startRecording();
+        }
+        return false;
     }
 
     public boolean stopRecording() {
-        return mRecorderController.stopRecording();
+        if (mRecorderController != null) {
+            return mRecorderController.stopRecording();
+        }
+        return false;
     }
 
 
@@ -278,18 +297,6 @@ public class RecordableTextureView extends TextureView
     public void setEGLWindowSurfaceFactory(EGLWindowSurfaceFactory factory) {
         checkRenderThreadState();
         mEGLWindowSurfaceFactory = factory;
-    }
-
-    public void setEGLRecordableSurfaceFactory(EGLWindowSurfaceFactory factory) {
-        checkRenderThreadState();
-        mEGLRecordableSurfaceFactory = factory;
-        mGLThread.initRecordableSurface();
-    }
-
-    public void setEGLImageReaderSurfaceFactory(EGLWindowSurfaceFactory factory) {
-        checkRenderThreadState();
-        mEGLImageReaderSurfaceFactory = factory;
-        mGLThread.initImageReaderSurface();
     }
 
     /**

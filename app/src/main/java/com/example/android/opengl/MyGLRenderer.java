@@ -24,6 +24,8 @@ import android.opengl.Matrix;
 import android.os.SystemClock;
 import android.util.Log;
 
+import com.uncorkedstudios.android.view.recordablesurfaceview.Renderer;
+
 /**
  * Provides drawing instructions for a GLSurfaceView object. This class
  * must override the OpenGL ES drawing lifecycle methods:
@@ -33,7 +35,7 @@ import android.util.Log;
  *   <li>{@link android.opengl.GLSurfaceView.Renderer#onSurfaceChanged}</li>
  * </ul>
  */
-public class MyGLRenderer implements GLSurfaceView.Renderer {
+public class MyGLRenderer implements Renderer, GLSurfaceView.Renderer {
 
     private static final String TAG = "MyGLRenderer";
     private Triangle mTriangle;
@@ -100,6 +102,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw triangle
         mTriangle.draw(scratch);
+
+    }
+
+    @Override
+    public void onSurfaceDestroyed(GL10 gl) {
 
     }
 
