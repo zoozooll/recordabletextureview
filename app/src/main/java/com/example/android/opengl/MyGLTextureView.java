@@ -28,7 +28,7 @@ import com.uncorkedstudios.android.view.recordablesurfaceview.RecordableTextureV
  */
 public class MyGLTextureView extends RecordableTextureView implements RecordableSurfaceView.RendererCallbacks {
 
-    private final MyGLRenderer mRenderer;
+    private final SceneRenderer mRenderer;
     private final float TOUCH_SCALE_FACTOR = 180.0f / 320;
     private float mPreviousX;
     private float mPreviousY;
@@ -38,7 +38,7 @@ public class MyGLTextureView extends RecordableTextureView implements Recordable
 
         // Set the Renderer for drawing on the GLSurfaceView
         setEGLContextClientVersion(2);
-        mRenderer = new MyGLRenderer();
+        mRenderer = new SceneRenderer(getContext());
         setRenderer(mRenderer);
         setRecorder();
 
@@ -89,6 +89,7 @@ public class MyGLTextureView extends RecordableTextureView implements Recordable
     @Override
     public void onSurfaceChanged(int width, int height) {
         mRenderer.onSurfaceChanged(null, width, height);
+
     }
 
     @Override

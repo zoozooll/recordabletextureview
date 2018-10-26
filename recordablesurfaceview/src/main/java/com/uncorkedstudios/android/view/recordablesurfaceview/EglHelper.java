@@ -286,7 +286,7 @@ public class EglHelper {
         if (currentSurface == null) {
             return false;
         }
-        Log.d(TAG, "makeCurrent eglsurface index " + currentSurfaceIndex);
+        Log.d(TAG, "makeCurrent " + currentSurfaceIndex);
         if (!mEgl.eglMakeCurrent(mEglDisplay, currentSurface, currentSurface, mEglContext)) {
             /*
              * Could not make the context current, probably because the underlying
@@ -311,7 +311,6 @@ public class EglHelper {
     }
 
     public int swap(int index) {
-        Log.d(TAG, "swap eglsurface index " + index);
         EGLSurface surface;
         switch (index)
         {
@@ -325,6 +324,7 @@ public class EglHelper {
                 surface = mEglSurface;
                 break;
         }
+        Log.d(TAG, "swap " + index);
         if (!mEgl.eglSwapBuffers(mEglDisplay, surface)) {
             return mEgl.eglGetError();
         }

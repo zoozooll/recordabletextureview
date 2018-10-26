@@ -273,8 +273,13 @@ public class GLThread extends Thread {
                                     // Destroy and recreate the EGL surface.
                                     createEglSurface = true;
                                     RecordableTextureView view = mGLSurfaceViewWeakRef.get();
-                                    if (view != null && view.mRecorderController != null) {
-                                        createRecordableSurface = true;
+                                    if (view != null) {
+                                        if (view.mRecorderController != null) {
+                                            createRecordableSurface = true;
+                                        }
+                                        if (view.mImageReaderController != null) {
+                                            createImageReaderSurface = true;
+                                        }
                                     }
                                     mSizeChanged = false;
                                 }
@@ -283,10 +288,18 @@ public class GLThread extends Thread {
                                 break;
                             }
 
-                            if (mHaveEglSurface && mEglHelper.mRecorderEglSurface == null) {
-                                RecordableTextureView view = mGLSurfaceViewWeakRef.get();
-                                if (view != null && view.mRecorderController != null) {
-                                    createRecordableSurface = true;
+                            if (mHaveEglSurface) {
+                                if (mEglHelper.mRecorderEglSurface == null) {
+                                    RecordableTextureView view = mGLSurfaceViewWeakRef.get();
+                                    if (view != null && view.mRecorderController != null) {
+                                        createRecordableSurface = true;
+                                    }
+                                }
+                                if (mEglHelper.mImageReaderEglSurface == null) {
+                                    RecordableTextureView view = mGLSurfaceViewWeakRef.get();
+                                    if (view != null && view.mImageReaderController != null) {
+                                        createImageReaderSurface = true;
+                                    }
                                 }
                             }
 
@@ -332,6 +345,11 @@ public class GLThread extends Thread {
                 if (createRecordableSurface) {
                     mEglHelper.createRecordableSurface();
                     createRecordableSurface = false;
+                }
+
+                if (createImageReaderSurface) {
+                    mEglHelper.createImageReaderSurface();
+                    createImageReaderSurface = false;
                 }
                 if (!mEglHelper.makeCurrent(0)) {
                     synchronized (RecordableTextureView.sGLThreadManager) {
@@ -435,35 +453,36 @@ public class GLThread extends Thread {
 
                             }
                         }
+                        if (view.mImageReaderController != null) {
+                            result = mEglHelper.makeCurrent(2);
+                            if (result) {
+                                view.mRenderer.onDrawFrame(gl);
+                                int swapError = mEglHelper.swap(2);
+                                switch (swapError) {
+                                    case EGL10.EGL_SUCCESS:
+                                        break;
+                                    case EGL11.EGL_CONTEXT_LOST:
+                                        if (LOG_SURFACE) {
+                                            Log.i("GLThread", "egl context lost tid=" + getId());
+                                        }
+                                        lostEglContext = true;
+                                        break;
+                                    default:
+                                        // Other errors typically mean that the current surface is bad,
+                                        // probably because the SurfaceView surface has been destroyed,
+                                        // but we haven't been notified yet.
+                                        // Log the error to help developers understand why rendering stopped.
+                                        EglHelper.logEglErrorAsWarning("GLThread", "eglSwapBuffers", swapError);
 
-                        /*result = mEglHelper.makeCurrent(2);
-                        if (result) {
-                            view.mRenderer.onDrawFrame(gl);
-                            int swapError = mEglHelper.swap(2);
-                            switch (swapError) {
-                                case EGL10.EGL_SUCCESS:
-                                    break;
-                                case EGL11.EGL_CONTEXT_LOST:
-                                    if (LOG_SURFACE) {
-                                        Log.i("GLThread", "egl context lost tid=" + getId());
-                                    }
-                                    lostEglContext = true;
-                                    break;
-                                default:
-                                    // Other errors typically mean that the current surface is bad,
-                                    // probably because the SurfaceView surface has been destroyed,
-                                    // but we haven't been notified yet.
-                                    // Log the error to help developers understand why rendering stopped.
-                                    EglHelper.logEglErrorAsWarning("GLThread", "eglSwapBuffers", swapError);
+                                        synchronized (RecordableTextureView.sGLThreadManager) {
+                                            mSurfaceIsBad = true;
+                                            RecordableTextureView.sGLThreadManager.notifyAll();
+                                        }
+                                        break;
+                                }
 
-                                    synchronized (RecordableTextureView.sGLThreadManager) {
-                                        mSurfaceIsBad = true;
-                                        RecordableTextureView.sGLThreadManager.notifyAll();
-                                    }
-                                    break;
                             }
-
-                        }*/
+                        }
                     }
                 }
 

@@ -8,10 +8,13 @@ import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.util.Log;
 
+import com.uncorkedstudios.android.view.recordablesurfaceview.RecordableTextureView;
+import com.uncorkedstudios.android.view.recordablesurfaceview.Renderer;
+
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-public class SceneRenderer implements GLSurfaceView.Renderer {
+public class SceneRenderer implements GLSurfaceView.Renderer, Renderer {
 
     private Context context;
     private CanvasRectangle texRect;//纹理三角形对象引用
@@ -28,6 +31,11 @@ public class SceneRenderer implements GLSurfaceView.Renderer {
         //绘制纹理三角形
         if (texRect != null) texRect.drawSelf();
         GLUtil.checkGlError("onDrawFrame Error");
+    }
+
+    @Override
+    public void onSurfaceDestroyed(GL10 gl) {
+
     }
 
     public void onSurfaceChanged(GL10 gl, int width, int height) {

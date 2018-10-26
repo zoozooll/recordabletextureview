@@ -92,7 +92,7 @@ public class RecordableTextureView extends TextureView
     private int mEGLContextClientVersion;
     boolean mPreserveEGLContextOnPause;
     RecorderController mRecorderController;
-//    private ImageReader mImageReader;
+    TakePictureController mImageReaderController;
 
     /**
      * Standard View constructor. In order to render something, you
@@ -267,6 +267,11 @@ public class RecordableTextureView extends TextureView
             return mRecorderController.stopRecording();
         }
         return false;
+    }
+
+    public void setImageReader() {
+        mImageReaderController = new TakePictureController(getWidth(), getHeight());
+        mEGLImageReaderSurfaceFactory = new ImageReaderSurfaceFactory(mImageReaderController.getSurface());
     }
 
 
@@ -534,6 +539,7 @@ public class RecordableTextureView extends TextureView
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
         surfaceCreated(surface);
         surfaceChanged(surface, 0, width, height);
+        setImageReader();
     }
 
     public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
