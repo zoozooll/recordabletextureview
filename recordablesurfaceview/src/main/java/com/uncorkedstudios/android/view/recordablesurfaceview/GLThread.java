@@ -127,9 +127,9 @@ public class GLThread extends Thread {
             int h = 0;
             Runnable event = null;
 
-            while (true) {
+            while (true) {  /*外循环，画帧的循环，每一帧一个循环节*/
                 synchronized (RecordableTextureView.sGLThreadManager) {
-                    while (true) {
+                    while (true) {  /*内循环，准备画opengl的内容，如果不完整或者状态不对即会wait，等待下一个notif进入下一个循环。循环退出后进入准备循环opengl*/
                         if (mShouldExit) {
                             return;
                         }
